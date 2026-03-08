@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import AppLayout from '../components/AppLayout';
 import { X, Loader2, Sparkles, ChevronDown, ChevronUp, ExternalLink, Github, Plus } from 'lucide-react';
-
+import TemplateSelector from '../components/TemplateSelector';
+import { calculateAtsScore } from '../utils/atsScoring';
 const DEFAULT_DATA = {
     personalInfo: { name: '', email: '', phone: '', location: '' },
     summary: '',
@@ -58,6 +59,10 @@ export default function Builder() {
         return localStorage.getItem('resumeTemplateChoice') || 'classic';
     });
 
+    const [colorTheme, setColorTheme] = useState(() => {
+        return localStorage.getItem('resumeColorTheme') || 'hsl(168, 60%, 40%)';
+    });
+
     const [skillInputs, setSkillInputs] = useState({ technical: '', soft: '', tools: '' });
     const [isSuggestingSkills, setIsSuggestingSkills] = useState(false);
 
@@ -72,6 +77,10 @@ export default function Builder() {
     useEffect(() => {
         localStorage.setItem('resumeTemplateChoice', template);
     }, [template]);
+
+    useEffect(() => {
+        localStorage.setItem('resumeColorTheme', colorTheme);
+    }, [colorTheme]);
 
     const loadSampleData = () => {
         setResumeData({
@@ -198,55 +207,16 @@ export default function Builder() {
 
     // ATS Scoring Logic
     const atsEvaluation = useMemo(() => {
-        let score = 20;
-        let topImprovements = [];
+        const { score, improvements } = calculateAtsScore(resumeData);
 
-        const summaryWords = resumeData.summary.trim().split(/\s+/).filter(w => w.length > 0).length;
-        if (summaryWords >= 40 && summaryWords <= 120) {
-            score += 15;
-        } else {
-            topImprovements.push("Write a stronger summary (40–120 words).");
-        }
+        // Map labels for the builder's specific display if needed, 
+        // though we'll stick to the rules provided.
+        let label = "Needs Work";
+        let color = "#EF4444";
+        if (score > 40) { label = "Getting There"; color = "#F59E0B"; }
+        if (score > 70) { label = "Strong Resume"; color = "#10B981"; }
 
-        if (resumeData.projects.length >= 2) {
-            score += 10;
-        } else {
-            topImprovements.push("Add at least 2 projects.");
-        }
-
-        if (resumeData.experience.length >= 1) {
-            score += 10;
-        } else {
-            topImprovements.push("Add internship or project experience.");
-        }
-
-        const totalSkills = resumeData.skills.technical.length + resumeData.skills.soft.length + resumeData.skills.tools.length;
-        if (totalSkills >= 8) {
-            score += 10;
-        } else {
-            topImprovements.push(`Add more skills (currently ${totalSkills}, target 8+).`);
-        }
-
-        if (resumeData.links.github.trim() !== '' || resumeData.links.linkedin.trim() !== '') {
-            score += 10;
-        }
-
-        const hasNumber = [...resumeData.experience, ...resumeData.projects].some(item => /\d/.test(item.description));
-        if (hasNumber) {
-            score += 15;
-        } else {
-            topImprovements.push("Add measurable impact (numbers) in bullets.");
-        }
-
-        const hasCompleteEdu = resumeData.education.length > 0 && resumeData.education.some(e => e.institution.trim() !== '' && e.degree.trim() !== '' && e.year.trim() !== '');
-        if (hasCompleteEdu) {
-            score += 10;
-        }
-
-        return {
-            score: Math.min(score, 100),
-            topImprovements: topImprovements.slice(0, 3)
-        };
+        return { score, topImprovements: improvements, label, color };
     }, [resumeData]);
 
     const totalSkillsTracker = resumeData.skills.technical.length + resumeData.skills.soft.length + resumeData.skills.tools.length;
@@ -257,27 +227,27 @@ export default function Builder() {
     const isMinimal = template === 'minimal';
 
     const getHeaderClass = () => {
-        if (isClassic) return "text-center mb-6 border-b-2 border-black pb-6";
-        if (isModern) return "flex justify-between items-end mb-6 border-b-4 border-black pb-6 text-left";
+        if (isClassic) return "text-center mb-6 border-b-2 pb-6 theme-border";
+        if (isModern) return "flex justify-between items-end mb-6 border-b-4 pb-6 text-left theme-border";
         return "text-left mb-6 pb-4";
     };
 
     const getNameClass = () => {
-        if (isClassic) return "text-3xl font-serif font-black tracking-tight mb-2 uppercase break-words align-middle";
-        if (isModern) return "text-4xl font-sans font-black tracking-tighter mb-1 uppercase text-black break-words max-w-[60%]";
-        return "text-3xl font-sans font-bold tracking-tight mb-3 text-black";
+        if (isClassic) return "text-3xl font-serif font-black tracking-tight mb-2 uppercase break-words align-middle theme-text";
+        if (isModern) return "text-4xl font-sans font-black tracking-tighter mb-1 uppercase break-words max-w-[60%] theme-text";
+        return "text-3xl font-sans font-bold tracking-tight mb-3 theme-text";
     };
 
     const getContactClass = () => {
-        if (isClassic) return "text-xs font-medium tracking-wide";
-        if (isModern) return "text-[11px] font-bold tracking-wider text-right flex flex-col items-end gap-1";
+        if (isClassic) return "text-xs font-medium tracking-wide theme-text";
+        if (isModern) return "text-[11px] font-bold tracking-wider text-right flex flex-col items-end gap-1 theme-text";
         return "text-xs font-medium text-gray-800 tracking-wide";
     };
 
     const getSectionHeaderClass = () => {
-        if (isClassic) return "text-xs font-black uppercase tracking-widest mb-2 border-b-2 border-black pb-1 font-serif";
-        if (isModern) return "text-xs font-black uppercase tracking-widest mb-3 border-b-2 border-gray-300 text-gray-900 pb-1 w-full font-sans";
-        return "text-xs font-bold uppercase tracking-widest mb-2 mt-2 font-sans text-black";
+        if (isClassic) return "text-xs font-black uppercase tracking-widest mb-2 border-b-2 pb-1 font-serif theme-border theme-text";
+        if (isModern) return "text-xs font-black uppercase tracking-widest mb-3 border-b-2 border-gray-300 pb-1 w-full font-sans theme-text";
+        return "text-xs font-bold uppercase tracking-widest mb-2 mt-2 font-sans theme-text";
     };
 
     return (
@@ -299,15 +269,20 @@ export default function Builder() {
                     <div className="mb-10 bg-gray-50 p-6 rounded-2xl border border-gray-200 shadow-sm">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">ATS Readiness Score</h3>
-                            <div className="flex items-center gap-3">
-                                <div className="text-3xl font-black tracking-tighter" style={{ color: atsEvaluation.score >= 80 ? '#10B981' : atsEvaluation.score >= 50 ? '#F59E0B' : '#EF4444' }}>
-                                    {atsEvaluation.score}
+                            <div className="flex flex-col items-end">
+                                <div className="flex items-center gap-3">
+                                    <div className="text-3xl font-black tracking-tighter" style={{ color: atsEvaluation.color }}>
+                                        {atsEvaluation.score}
+                                    </div>
+                                    <div className="text-gray-400 text-sm font-bold mt-1">/ 100</div>
                                 </div>
-                                <div className="text-gray-400 text-sm font-bold mt-1">/ 100</div>
+                                <div className="text-[10px] font-black uppercase tracking-widest mt-1" style={{ color: atsEvaluation.color }}>
+                                    {atsEvaluation.label}
+                                </div>
                             </div>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2.5 mb-6 overflow-hidden">
-                            <div className="h-2.5 rounded-full transition-all duration-500" style={{ width: `${atsEvaluation.score}%`, backgroundColor: atsEvaluation.score >= 80 ? '#10B981' : atsEvaluation.score >= 50 ? '#F59E0B' : '#EF4444' }}></div>
+                            <div className="h-2.5 rounded-full transition-all duration-500" style={{ width: `${atsEvaluation.score}%`, backgroundColor: atsEvaluation.color }}></div>
                         </div>
 
                         {atsEvaluation.topImprovements.length > 0 && (
@@ -568,70 +543,96 @@ export default function Builder() {
 
                 {/* Right Column: Live Preview Panel */}
                 <div className="w-1/2 overflow-y-auto p-10 xl:p-14 bg-gray-100 flex flex-col items-center justify-start border-l border-gray-200">
-                    <div className="w-full max-w-[800px] mb-6 flex justify-center">
-                        <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-sm inline-flex">
-                            <button onClick={() => setTemplate('classic')} className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded transition-all ${isClassic ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900'}`}>Classic</button>
-                            <button onClick={() => setTemplate('modern')} className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded transition-all ${isModern ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900'}`}>Modern</button>
-                            <button onClick={() => setTemplate('minimal')} className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded transition-all ${isMinimal ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900'}`}>Minimal</button>
-                        </div>
-                    </div>
 
-                    <div className="w-full max-w-[800px] aspect-[1/1.414] bg-white shadow-2xl p-10 lg:p-14 flex flex-col items-center justify-start border border-gray-200 transition-all duration-300 relative overflow-hidden">
+                    <TemplateSelector
+                        template={template}
+                        setTemplate={setTemplate}
+                        colorTheme={colorTheme}
+                        setColorTheme={setColorTheme}
+                    />
+
+                    {/* The Live View Builder layout inherits injected CSS variables */}
+                    <style dangerouslySetInnerHTML={{
+                        __html: `
+                        .theme-text { color: ${colorTheme} !important; }
+                        .theme-border { border-color: ${colorTheme} !important; }
+                        .theme-bg { background-color: ${colorTheme} !important; }
+                    `}} />
+
+                    <div className="w-full max-w-[800px] aspect-[1/1.414] bg-white shadow-2xl p-10 lg:p-14 flex flex-col items-center justify-start border border-gray-200 transition-all duration-300 relative overflow-hidden shrink-0" style={{ '--resume-accent': colorTheme }}>
                         {hasData ? (
-                            <div className={`w-full h-full text-black flex flex-col scale-[0.95] origin-top ${isClassic ? 'font-serif' : 'font-sans'}`}>
-                                <header className={getHeaderClass()}>
-                                    <h1 className={getNameClass()}>{resumeData.personalInfo.name || 'Your Name'}</h1>
-                                    <div className={getContactClass()}>
-                                        {isModern ? (
-                                            <>
+                            isModern ? (
+                                <div className="flex w-full h-full text-black flex-1 scale-[0.95] origin-top font-sans">
+                                    <div className="w-[35%] theme-bg text-white p-6 shrink-0 h-full flex flex-col gap-6">
+                                        <div>
+                                            <h1 className="text-2xl font-black tracking-tighter uppercase break-words leading-tight">{resumeData.personalInfo.name || 'Your Name'}</h1>
+                                            <div className="text-[10px] font-bold tracking-wider flex flex-col items-start gap-1 mt-3 opacity-90">
                                                 {resumeData.personalInfo.email && <span>{resumeData.personalInfo.email}</span>}
                                                 {resumeData.personalInfo.phone && <span>{resumeData.personalInfo.phone}</span>}
                                                 {resumeData.personalInfo.location && <span>{resumeData.personalInfo.location}</span>}
                                                 {resumeData.links.github && <span>{resumeData.links.github}</span>}
                                                 {resumeData.links.linkedin && <span>{resumeData.links.linkedin}</span>}
-                                            </>
-                                        ) : (
-                                            <p>
-                                                {[resumeData.personalInfo.email, resumeData.personalInfo.phone, resumeData.personalInfo.location].filter(Boolean).join(' • ')}
-                                                {([resumeData.personalInfo.email, resumeData.personalInfo.phone, resumeData.personalInfo.location].filter(Boolean).length > 0 && (resumeData.links.github || resumeData.links.linkedin)) && <br />}
-                                                {[resumeData.links.github, resumeData.links.linkedin].filter(Boolean).join(' • ')}
-                                            </p>
+                                            </div>
+                                        </div>
+
+                                        {totalSkillsTracker > 0 && (
+                                            <div className="mt-4">
+                                                <h2 className="text-xs font-black uppercase tracking-widest mb-3 border-b-2 border-white/20 pb-1.5 w-full">Skills</h2>
+                                                <div className="space-y-4">
+                                                    {resumeData.skills.technical.length > 0 && (
+                                                        <div className="text-[10px] leading-relaxed">
+                                                            <div className="font-bold mb-0.5 opacity-90 uppercase tracking-widest text-[8px]">Technical</div>
+                                                            <div className="font-medium text-white/90">{resumeData.skills.technical.join('\n')}</div>
+                                                        </div>
+                                                    )}
+                                                    {resumeData.skills.soft.length > 0 && (
+                                                        <div className="text-[10px] leading-relaxed">
+                                                            <div className="font-bold mb-0.5 opacity-90 uppercase tracking-widest text-[8px]">Soft Skills</div>
+                                                            <div className="font-medium text-white/90">{resumeData.skills.soft.join('\n')}</div>
+                                                        </div>
+                                                    )}
+                                                    {resumeData.skills.tools.length > 0 && (
+                                                        <div className="text-[10px] leading-relaxed">
+                                                            <div className="font-bold mb-0.5 opacity-90 uppercase tracking-widest text-[8px]">Tools / Tech</div>
+                                                            <div className="font-medium text-white/90">{resumeData.skills.tools.join('\n')}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
-                                </header>
 
-                                <div className="font-sans">
-                                    {resumeData.summary.trim() && (
-                                        <section className="mb-5">
-                                            <h2 className={getSectionHeaderClass()}>Professional Summary</h2>
-                                            <p className="text-xs leading-relaxed">{resumeData.summary}</p>
-                                        </section>
-                                    )}
+                                    <div className="w-[65%] p-6 pr-8 h-full flex flex-col">
+                                        {resumeData.summary.trim() && (
+                                            <section className="mb-6">
+                                                <h2 className={getSectionHeaderClass()}>Professional Summary</h2>
+                                                <p className="text-[11px] leading-relaxed text-gray-900 whitespace-pre-wrap">{resumeData.summary}</p>
+                                            </section>
+                                        )}
 
-                                    {resumeData.experience.some(e => e.role || e.company || e.description) && (
-                                        <section className="mb-5">
-                                            <h2 className={getSectionHeaderClass()}>Experience</h2>
-                                            {resumeData.experience.filter(e => e.role || e.company || e.description).map((exp, i) => (
-                                                <div key={i} className="mb-3">
-                                                    <div className="flex justify-between items-baseline mb-0.5">
-                                                        <h3 className={`font-bold text-[13px] ${isMinimal ? 'font-sans text-black tracking-tight' : ''}`}>{exp.role}</h3>
-                                                        <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap ml-4">{exp.period}</span>
-                                                    </div>
-                                                    <p className={`text-xs mb-1 ${isMinimal ? 'text-gray-500 font-medium' : 'font-bold italic text-gray-800'}`}>{exp.company}</p>
-                                                    <p className="text-[11.5px] leading-relaxed break-words whitespace-pre-wrap">{exp.description}</p>
-                                                </div>
-                                            ))}
-                                        </section>
-                                    )}
-
-                                    {resumeData.projects.some(p => p.name || p.description) && (
-                                        <section className="mb-5">
-                                            <h2 className={getSectionHeaderClass()}>Projects</h2>
-                                            <div className="space-y-3">
-                                                {resumeData.projects.filter(p => p.name || p.description).map((proj, i) => (
-                                                    <div key={i} className="mb-1">
+                                        {resumeData.experience.some(e => e.role || e.company || e.description) && (
+                                            <section className="mb-6 shrink-0">
+                                                <h2 className={getSectionHeaderClass()}>Experience</h2>
+                                                {resumeData.experience.filter(e => e.role || e.company || e.description).map((exp, i) => (
+                                                    <div key={i} className="mb-4">
                                                         <div className="flex justify-between items-baseline mb-0.5">
-                                                            <h3 className={`font-bold text-[13px] flex items-center gap-1.5 ${isMinimal ? 'font-sans text-black tracking-tight' : ''}`}>
+                                                            <h3 className="font-bold text-xs theme-text">{exp.role}</h3>
+                                                            <span className="text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ml-3 theme-text opacity-70">{exp.period}</span>
+                                                        </div>
+                                                        <p className="text-[11px] mb-1.5 font-bold italic text-gray-800">{exp.company}</p>
+                                                        <p className="text-[11px] leading-relaxed text-gray-900 whitespace-pre-wrap">{exp.description}</p>
+                                                    </div>
+                                                ))}
+                                            </section>
+                                        )}
+
+                                        {resumeData.projects.some(p => p.name || p.description) && (
+                                            <section className="mb-6 shrink-0">
+                                                <h2 className={getSectionHeaderClass()}>Projects</h2>
+                                                {resumeData.projects.filter(p => p.name || p.description).map((proj, i) => (
+                                                    <div key={i} className="mb-4">
+                                                        <div className="flex justify-between items-baseline mb-0.5">
+                                                            <h3 className="font-bold text-xs flex items-center gap-1.5 theme-text">
                                                                 {proj.name}
                                                                 {(proj.githubUrl || proj.liveUrl) && (
                                                                     <div className="flex items-center gap-1 opacity-60 ml-1">
@@ -641,11 +642,11 @@ export default function Builder() {
                                                                 )}
                                                             </h3>
                                                         </div>
-                                                        <p className="text-[11.5px] leading-relaxed break-words whitespace-pre-wrap mb-1.5">{proj.description}</p>
+                                                        <p className="text-[11px] leading-relaxed text-gray-900 whitespace-pre-wrap mb-1.5">{proj.description}</p>
                                                         {proj.techStack && proj.techStack.length > 0 && (
-                                                            <div className="flex flex-wrap gap-1.5">
+                                                            <div className="flex flex-wrap gap-1 mt-1">
                                                                 {proj.techStack.map((tech, idx) => (
-                                                                    <span key={idx} className="bg-gray-100 text-gray-700 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border border-gray-200">
+                                                                    <span key={idx} className="bg-gray-50 text-gray-700 text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border border-gray-200">
                                                                         {tech}
                                                                     </span>
                                                                 ))}
@@ -653,52 +654,138 @@ export default function Builder() {
                                                         )}
                                                     </div>
                                                 ))}
-                                            </div>
-                                        </section>
-                                    )}
+                                            </section>
+                                        )}
 
-                                    {resumeData.education.some(e => e.institution || e.degree) && (
-                                        <section className="mb-5">
-                                            <h2 className={getSectionHeaderClass()}>Education</h2>
-                                            {resumeData.education.filter(e => e.institution || e.degree).map((edu, i) => (
-                                                <div key={i} className="mb-2">
-                                                    <div className="flex justify-between items-baseline mb-0.5">
-                                                        <h3 className={`font-bold text-[13px] ${isMinimal ? 'font-sans text-black tracking-tight' : ''}`}>{edu.institution}</h3>
-                                                        <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap ml-4">{edu.year}</span>
+                                        {resumeData.education.some(e => e.institution || e.degree) && (
+                                            <section className="mb-6 shrink-0">
+                                                <h2 className={getSectionHeaderClass()}>Education</h2>
+                                                {resumeData.education.filter(e => e.institution || e.degree).map((edu, i) => (
+                                                    <div key={i} className="mb-2">
+                                                        <div className="flex justify-between items-baseline mb-0.5">
+                                                            <h3 className={`font-bold text-xs theme-text`}>{edu.institution}</h3>
+                                                            <span className="text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ml-3 theme-text opacity-70">{edu.year}</span>
+                                                        </div>
+                                                        <p className={`text-[11px] font-bold italic text-gray-800`}>{edu.degree}</p>
                                                     </div>
-                                                    <p className={`text-xs ${isMinimal ? 'text-gray-500 font-medium' : 'font-medium italic text-gray-800'}`}>{edu.degree}</p>
-                                                </div>
-                                            ))}
-                                        </section>
-                                    )}
-
-                                    {totalSkillsTracker > 0 && (
-                                        <section className="mb-5">
-                                            <h2 className={getSectionHeaderClass()}>Skills</h2>
-                                            <div className="space-y-2">
-                                                {resumeData.skills.technical.length > 0 && (
-                                                    <div className="text-[11.5px] leading-relaxed">
-                                                        <span className="font-bold mr-1">Technical:</span>
-                                                        <span className="text-gray-800">{resumeData.skills.technical.join(isModern ? '  |  ' : ' • ')}</span>
-                                                    </div>
-                                                )}
-                                                {resumeData.skills.soft.length > 0 && (
-                                                    <div className="text-[11.5px] leading-relaxed">
-                                                        <span className="font-bold mr-1">Soft Skills:</span>
-                                                        <span className="text-gray-800">{resumeData.skills.soft.join(isModern ? '  |  ' : ' • ')}</span>
-                                                    </div>
-                                                )}
-                                                {resumeData.skills.tools.length > 0 && (
-                                                    <div className="text-[11.5px] leading-relaxed">
-                                                        <span className="font-bold mr-1">Tools / Tech:</span>
-                                                        <span className="text-gray-800">{resumeData.skills.tools.join(isModern ? '  |  ' : ' • ')}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </section>
-                                    )}
+                                                ))}
+                                            </section>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className={`w-full h-full text-black flex flex-col scale-[0.95] origin-top ${isClassic ? 'font-serif' : 'font-sans'}`}>
+                                    <header className={`${getHeaderClass()} ${isClassic ? 'theme-border' : ''}`}>
+                                        <h1 className={getNameClass()}>{resumeData.personalInfo.name || 'Your Name'}</h1>
+                                        <div className={getContactClass()}>
+                                            <p>
+                                                {[resumeData.personalInfo.email, resumeData.personalInfo.phone, resumeData.personalInfo.location].filter(Boolean).join(' • ')}
+                                                {([resumeData.personalInfo.email, resumeData.personalInfo.phone, resumeData.personalInfo.location].filter(Boolean).length > 0 && (resumeData.links.github || resumeData.links.linkedin)) && <br />}
+                                                {[resumeData.links.github, resumeData.links.linkedin].filter(Boolean).join(' • ')}
+                                            </p>
+                                        </div>
+                                    </header>
+
+                                    <div className="font-sans">
+                                        {resumeData.summary.trim() && (
+                                            <section className="mb-5">
+                                                <h2 className={getSectionHeaderClass()}>Professional Summary</h2>
+                                                <p className="text-xs leading-relaxed">{resumeData.summary}</p>
+                                            </section>
+                                        )}
+
+                                        {resumeData.experience.some(e => e.role || e.company || e.description) && (
+                                            <section className="mb-5">
+                                                <h2 className={getSectionHeaderClass()}>Experience</h2>
+                                                {resumeData.experience.filter(e => e.role || e.company || e.description).map((exp, i) => (
+                                                    <div key={i} className="mb-3">
+                                                        <div className="flex justify-between items-baseline mb-0.5">
+                                                            <h3 className={`font-bold text-[13px] ${isMinimal ? 'font-sans text-black tracking-tight' : 'theme-text'}`}>{exp.role}</h3>
+                                                            <span className={`text-[11px] font-bold uppercase tracking-wider whitespace-nowrap ml-4 ${!isMinimal ? 'theme-text opacity-70' : ''}`}>{exp.period}</span>
+                                                        </div>
+                                                        <p className={`text-xs mb-1 ${isMinimal ? 'text-gray-500 font-medium' : 'font-bold italic text-gray-800'}`}>{exp.company}</p>
+                                                        <p className="text-[11.5px] leading-relaxed break-words whitespace-pre-wrap">{exp.description}</p>
+                                                    </div>
+                                                ))}
+                                            </section>
+                                        )}
+
+                                        {resumeData.projects.some(p => p.name || p.description) && (
+                                            <section className="mb-5">
+                                                <h2 className={getSectionHeaderClass()}>Projects</h2>
+                                                <div className="space-y-3">
+                                                    {resumeData.projects.filter(p => p.name || p.description).map((proj, i) => (
+                                                        <div key={i} className="mb-1">
+                                                            <div className="flex justify-between items-baseline mb-0.5">
+                                                                <h3 className={`font-bold text-[13px] flex items-center gap-1.5 ${isMinimal ? 'font-sans text-black tracking-tight' : 'theme-text'}`}>
+                                                                    {proj.name}
+                                                                    {(proj.githubUrl || proj.liveUrl) && (
+                                                                        <div className="flex items-center gap-1 opacity-60 ml-1">
+                                                                            {proj.githubUrl && <Github className="w-3 h-3" />}
+                                                                            {proj.liveUrl && <ExternalLink className="w-3 h-3" />}
+                                                                        </div>
+                                                                    )}
+                                                                </h3>
+                                                            </div>
+                                                            <p className="text-[11.5px] leading-relaxed break-words whitespace-pre-wrap mb-1.5">{proj.description}</p>
+                                                            {proj.techStack && proj.techStack.length > 0 && (
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {proj.techStack.map((tech, idx) => (
+                                                                        <span key={idx} className="bg-gray-100 text-gray-700 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border border-gray-200">
+                                                                            {tech}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </section>
+                                        )}
+
+                                        {resumeData.education.some(e => e.institution || e.degree) && (
+                                            <section className="mb-5">
+                                                <h2 className={getSectionHeaderClass()}>Education</h2>
+                                                {resumeData.education.filter(e => e.institution || e.degree).map((edu, i) => (
+                                                    <div key={i} className="mb-2">
+                                                        <div className="flex justify-between items-baseline mb-0.5">
+                                                            <h3 className={`font-bold text-[13px] ${isMinimal ? 'font-sans text-black tracking-tight' : 'theme-text'}`}>{edu.institution}</h3>
+                                                            <span className={`text-[11px] font-bold uppercase tracking-wider whitespace-nowrap ml-4 ${!isMinimal ? 'theme-text opacity-70' : ''}`}>{edu.year}</span>
+                                                        </div>
+                                                        <p className={`text-xs ${isMinimal ? 'text-gray-500 font-medium' : 'font-medium italic text-gray-800'}`}>{edu.degree}</p>
+                                                    </div>
+                                                ))}
+                                            </section>
+                                        )}
+
+                                        {totalSkillsTracker > 0 && (
+                                            <section className="mb-5">
+                                                <h2 className={getSectionHeaderClass()}>Skills</h2>
+                                                <div className="space-y-2">
+                                                    {resumeData.skills.technical.length > 0 && (
+                                                        <div className="text-[11.5px] leading-relaxed">
+                                                            <span className="font-bold mr-1">Technical:</span>
+                                                            <span className="text-gray-800">{resumeData.skills.technical.join(isModern ? '  |  ' : ' • ')}</span>
+                                                        </div>
+                                                    )}
+                                                    {resumeData.skills.soft.length > 0 && (
+                                                        <div className="text-[11.5px] leading-relaxed">
+                                                            <span className="font-bold mr-1">Soft Skills:</span>
+                                                            <span className="text-gray-800">{resumeData.skills.soft.join(isModern ? '  |  ' : ' • ')}</span>
+                                                        </div>
+                                                    )}
+                                                    {resumeData.skills.tools.length > 0 && (
+                                                        <div className="text-[11.5px] leading-relaxed">
+                                                            <span className="font-bold mr-1">Tools / Tech:</span>
+                                                            <span className="text-gray-800">{resumeData.skills.tools.join(isModern ? '  |  ' : ' • ')}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </section>
+                                        )}
+                                    </div>
+                                </div>
+                            )
                         ) : (
                             <div className="flex flex-col items-center justify-center h-full opacity-60">
                                 <div className="w-20 h-20 mb-6 border-4 border-dashed border-gray-200 rounded-full flex items-center justify-center">
