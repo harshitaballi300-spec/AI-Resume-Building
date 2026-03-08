@@ -1,16 +1,20 @@
-export const calculateAtsScore = (resumeData) => {
+export const calculateAtsScore = (resumeData = {}) => {
     let score = 0;
     const improvements = [];
 
+    // Ensure personalInfo exists
+    const personalInfo = resumeData.personalInfo || {};
+    const links = resumeData.links || {};
+
     // +10 if name provided
-    if (resumeData.personalInfo.name && resumeData.personalInfo.name.trim() !== '') {
+    if (personalInfo.name && personalInfo.name.trim() !== '') {
         score += 10;
     } else {
         improvements.push("Add a full name (+10 points)");
     }
 
     // +10 if email provided
-    if (resumeData.personalInfo.email && resumeData.personalInfo.email.trim() !== '') {
+    if (personalInfo.email && personalInfo.email.trim() !== '') {
         score += 10;
     } else {
         improvements.push("Add a professional email (+10 points)");
@@ -24,7 +28,7 @@ export const calculateAtsScore = (resumeData) => {
     }
 
     // +15 if at least 1 experience entry with bullets
-    if (resumeData.experience && resumeData.experience.some(e => e.description && e.description.trim() !== '')) {
+    if (resumeData.experience && resumeData.experience.length > 0 && resumeData.experience.some(e => e.description && e.description.trim() !== '')) {
         score += 15;
     } else {
         improvements.push("Add an experience entry with bullets (+15 points)");
@@ -55,21 +59,21 @@ export const calculateAtsScore = (resumeData) => {
     }
 
     // +5 if phone provided
-    if (resumeData.personalInfo.phone && resumeData.personalInfo.phone.trim() !== '') {
+    if (personalInfo.phone && personalInfo.phone.trim() !== '') {
         score += 5;
     } else {
         improvements.push("Add a phone number (+5 points)");
     }
 
     // +5 if LinkedIn provided
-    if (resumeData.links && resumeData.links.linkedin && resumeData.links.linkedin.trim() !== '') {
+    if (links.linkedin && links.linkedin.trim() !== '') {
         score += 5;
     } else {
         improvements.push("Add your LinkedIn profile (+5 points)");
     }
 
     // +5 if GitHub provided
-    if (resumeData.links && resumeData.links.github && resumeData.links.github.trim() !== '') {
+    if (links.github && links.github.trim() !== '') {
         score += 5;
     } else {
         improvements.push("Add your GitHub profile (+5 points)");
