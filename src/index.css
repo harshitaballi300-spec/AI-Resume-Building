@@ -1,2 +1,49 @@
 @import "tailwindcss";
 @import "./design-system.css";
+
+@media print {
+    body {
+        background-color: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    #root,
+    .font-sans,
+    .bg-bg {
+        background-color: transparent !important;
+    }
+
+    .print-hidden,
+    header.sticky,
+    button {
+        display: none !important;
+    }
+
+    .print-visible {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        min-height: auto !important;
+    }
+
+    @page {
+        margin: 0.75in;
+    }
+
+    section {
+        page-break-inside: avoid;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+}
