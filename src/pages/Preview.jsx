@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import AppLayout from '../components/AppLayout';
-import { Download, Copy, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Download, Copy, CheckCircle2, AlertTriangle, ExternalLink, Github } from 'lucide-react';
 
 const DEFAULT_DATA = {
     personalInfo: { name: '', email: '', phone: '', location: '' },
@@ -8,7 +8,7 @@ const DEFAULT_DATA = {
     education: [],
     experience: [],
     projects: [],
-    skills: '',
+    skills: { technical: [], soft: [], tools: [] },
     links: { github: '', linkedin: '' }
 };
 
@@ -16,7 +16,30 @@ export default function Preview() {
     const [resumeData, setResumeData] = useState(() => {
         const saved = localStorage.getItem('resumeBuilderData');
         if (saved) {
-            try { return JSON.parse(saved); } catch (e) { return DEFAULT_DATA; }
+            try {
+                let parsed = JSON.parse(saved);
+                // Migrate skills if it's the old string format
+                if (typeof parsed.skills === 'string') {
+                    parsed.skills = {
+                        technical: parsed.skills.split(',').map(s => s.trim()).filter(Boolean),
+                        soft: [],
+                        tools: []
+                    };
+                }
+                if (!parsed.skills) parsed.skills = { technical: [], soft: [], tools: [] };
+
+                // Migrate projects
+                if (parsed.projects && Array.isArray(parsed.projects)) {
+                    parsed.projects = parsed.projects.map(p => ({
+                        ...p,
+                        techStack: Array.isArray(p.techStack) ? p.techStack : [],
+                        liveUrl: p.liveUrl || '',
+                        githubUrl: p.githubUrl || ''
+                    }));
+                }
+
+                return parsed;
+            } catch (e) { return DEFAULT_DATA; }
         }
         return DEFAULT_DATA;
     });
@@ -33,7 +56,8 @@ export default function Preview() {
         localStorage.setItem('resumeTemplateChoice', newTemp);
     };
 
-    const hasData = resumeData.personalInfo.name || resumeData.summary || resumeData.experience.length > 0 || resumeData.education.length > 0 || resumeData.projects.length > 0 || resumeData.skills;
+    const totalSkillsTracker = resumeData.skills.technical.length + resumeData.skills.soft.length + resumeData.skills.tools.length;
+    const hasData = resumeData.personalInfo.name || resumeData.summary || resumeData.experience.length > 0 || resumeData.education.length > 0 || resumeData.projects.length > 0 || totalSkillsTracker > 0;
     const isMissingDataForWarning = !resumeData.personalInfo.name || (resumeData.projects.length === 0 && resumeData.experience.length === 0);
 
     const handlePrint = () => {
@@ -65,7 +89,15 @@ export default function Preview() {
             text += `PROJECTS\n`;
             resumeData.projects.forEach(proj => {
                 if (proj.name || proj.description) {
-                    text += `${proj.name || ''}\n${proj.description || ''}\n\n`;
+                    let projectTitleLine = proj.name || '';
+                    if (proj.liveUrl) projectTitleLine += ` | Live: ${proj.liveUrl}`;
+                    if (proj.githubUrl) projectTitleLine += ` | Repo: ${proj.githubUrl}`;
+
+                    text += `${projectTitleLine}\n`;
+                    if (proj.techStack && proj.techStack.length > 0) {
+                        text += `Tech: ${proj.techStack.join(', ')}\n`;
+                    }
+                    text += `${proj.description || ''}\n\n`;
                 }
             });
         }
@@ -79,8 +111,17 @@ export default function Preview() {
             });
         }
 
-        if (resumeData.skills.trim()) {
-            text += `SKILLS\n${resumeData.skills.split(',').map(s => s.trim()).filter(Boolean).join(' • ')}\n`;
+        if (totalSkillsTracker > 0) {
+            text += `SKILLS\n`;
+            if (resumeData.skills.technical.length > 0) {
+                text += `Technical: ${resumeData.skills.technical.join(', ')}\n`;
+            }
+            if (resumeData.skills.soft.length > 0) {
+                text += `Soft Skills: ${resumeData.skills.soft.join(', ')}\n`;
+            }
+            if (resumeData.skills.tools.length > 0) {
+                text += `Tools/Tech: ${resumeData.skills.tools.join(', ')}\n`;
+            }
         }
 
         navigator.clipboard.writeText(text);
@@ -154,7 +195,6 @@ export default function Preview() {
 
                 {hasData ? (
                     <div className="print-visible print:border-none print:-m-12 w-full max-w-[850px] bg-white lg:shadow-2xl shadow-black/10 p-16 md:p-20 border border-gray-200 min-h-[1100px] transition-all">
-                        {/* Clean resume layout - Premium typography, minimal black + white layout, no colors */}
                         <div className={`w-full h-full text-black flex flex-col ${isClassic ? 'font-serif' : 'font-sans'}`}>
                             <header className={getHeaderClass()}>
                                 <h1 className={getNameClass()}>{resumeData.personalInfo.name || 'Your Name'}</h1>
@@ -181,7 +221,7 @@ export default function Preview() {
                                 {resumeData.summary.trim() && (
                                     <section className="mb-10">
                                         <h2 className={getSectionHeaderClass()}>Professional Summary</h2>
-                                        <p className="text-[15px] leading-relaxed text-gray-900">{resumeData.summary}</p>
+                                        <p className="text-[15px] leading-relaxed text-gray-900 whitespace-pre-wrap">{resumeData.summary}</p>
                                     </section>
                                 )}
 
@@ -206,8 +246,27 @@ export default function Preview() {
                                         <h2 className={getSectionHeaderClass()}>Projects</h2>
                                         {resumeData.projects.filter(p => p.name || p.description).map((proj, i) => (
                                             <div key={i} className="mb-6 page-break-avoid">
-                                                <h3 className={`font-bold text-base mb-1 ${isMinimal ? 'font-sans text-black tracking-tight' : ''}`}>{proj.name}</h3>
-                                                <p className="text-[15px] leading-relaxed text-gray-900 whitespace-pre-wrap">{proj.description}</p>
+                                                <div className="flex justify-between items-baseline mb-1">
+                                                    <h3 className={`font-bold text-base flex items-center gap-2 ${isMinimal ? 'font-sans text-black tracking-tight' : ''}`}>
+                                                        {proj.name}
+                                                        {(proj.githubUrl || proj.liveUrl) && (
+                                                            <div className="flex items-center gap-1.5 opacity-60 ml-1">
+                                                                {proj.githubUrl && <Github className="w-4 h-4" />}
+                                                                {proj.liveUrl && <ExternalLink className="w-4 h-4" />}
+                                                            </div>
+                                                        )}
+                                                    </h3>
+                                                </div>
+                                                <p className="text-[15px] leading-relaxed text-gray-900 whitespace-pre-wrap mb-2">{proj.description}</p>
+                                                {proj.techStack && proj.techStack.length > 0 && (
+                                                    <div className="flex flex-wrap gap-2 mt-2">
+                                                        {proj.techStack.map((tech, idx) => (
+                                                            <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold uppercase tracking-widest px-2 py-1 rounded-md border border-gray-200">
+                                                                {tech}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </section>
@@ -228,12 +287,29 @@ export default function Preview() {
                                     </section>
                                 )}
 
-                                {resumeData.skills.trim() && (
+                                {totalSkillsTracker > 0 && (
                                     <section className="mb-10 shrink-0">
                                         <h2 className={getSectionHeaderClass()}>Skills</h2>
-                                        <p className="text-[15px] leading-relaxed text-gray-900">
-                                            {resumeData.skills.split(',').map(s => s.trim()).filter(Boolean).join(isModern ? '  |  ' : ' • ')}
-                                        </p>
+                                        <div className="space-y-4">
+                                            {resumeData.skills.technical.length > 0 && (
+                                                <div className="text-[15px] leading-relaxed">
+                                                    <span className="font-bold mr-2 inline-block">Technical:</span>
+                                                    <span className="text-gray-900">{resumeData.skills.technical.join(isModern ? '  |  ' : ' • ')}</span>
+                                                </div>
+                                            )}
+                                            {resumeData.skills.soft.length > 0 && (
+                                                <div className="text-[15px] leading-relaxed">
+                                                    <span className="font-bold mr-2 inline-block">Soft Skills:</span>
+                                                    <span className="text-gray-900">{resumeData.skills.soft.join(isModern ? '  |  ' : ' • ')}</span>
+                                                </div>
+                                            )}
+                                            {resumeData.skills.tools.length > 0 && (
+                                                <div className="text-[15px] leading-relaxed">
+                                                    <span className="font-bold mr-2 inline-block">Tools / Tech:</span>
+                                                    <span className="text-gray-900">{resumeData.skills.tools.join(isModern ? '  |  ' : ' • ')}</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </section>
                                 )}
                             </div>
